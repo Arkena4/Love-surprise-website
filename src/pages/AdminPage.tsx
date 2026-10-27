@@ -446,7 +446,7 @@ function ReviewModal({
               <a href={receiptFullUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-pink-700 hover:underline">
                 <ExternalLink size={14} /> Open full-size receipt
               </a>
-            )
+            )}
           </div>
         ) : (
           <div className="mt-6 rounded-xl bg-amber-50 p-4 text-center text-sm text-amber-700">
