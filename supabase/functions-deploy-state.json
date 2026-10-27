@@ -1,0 +1,9 @@
+{
+  "projectId": "72388680",
+  "functions": {
+    "notify-payment": {
+      "hasChanged": false,
+      "hash": "baef0ebb75806c9d1cf59985b6e99a5b6c243ebc05a908839ad86047a07abfe1"
+    }
+  }
+}
