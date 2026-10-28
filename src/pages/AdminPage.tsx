@@ -75,6 +75,7 @@ export function AdminPage({ navigate }: Props) {
   const [codes, setCodes] = useState<AccessCode[]>([]);
   const [codesLoading, setCodesLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [newCode, setNewCode] = useState<string | null>(null);
   const [codeSearch, setCodeSearch] = useState('');
   const [codeFilter, setCodeFilter] = useState<'all' | AccessCodeStatus>('all');
   const [assignModal, setAssignModal] = useState<AccessCode | null>(null);
@@ -142,11 +143,13 @@ export function AdminPage({ navigate }: Props) {
     const { data, error } = await supabase.rpc('generate_access_code');
     setGenerating(false);
     if (error) {
-      setActionError(error.message);
+      console.error('Access code generation failed', error);
+      setActionError('A new code could not be generated. Please sign in again and try again.');
       return;
     }
-    if (data) {
-      loadCodes();
+    if (typeof data === 'string' && data.length >= 12) {
+      setNewCode(data);
+      await loadCodes();
     }
   };
 
@@ -459,6 +462,17 @@ export function AdminPage({ navigate }: Props) {
                 <RefreshCw size={16} className={codesLoading ? 'animate-spin' : ''} /> Refresh
               </button>
             </div>
+
+            {newCode && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-200 bg-green-50 p-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-green-700">New customer code ready</p>
+                  <p className="mt-1 font-mono text-lg font-bold tracking-wider text-green-900">{newCode}</p>
+                  <p className="mt-1 text-xs text-green-700">Copy this code and send it to the customer after payment approval.</p>
+                </div>
+                <CopyButton text={newCode} />
+              </div>
+            )}
 
             {/* Codes table */}
             <div className="mt-6 overflow-hidden rounded-2xl border border-pink-100 bg-white/90 shadow-sm">
