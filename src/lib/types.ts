@@ -274,6 +274,53 @@ export interface PaymentLog {
   created_at: string;
 }
 
+export type AccessCodeStatus = 'unused' | 'assigned' | 'active' | 'revoked' | 'redeemed';
+
+export interface AccessCode {
+  id: string;
+  code: string;
+  status: AccessCodeStatus;
+  customer_name: string;
+  order_ref: string;
+  surprise_id: string | null;
+  payment_verified: boolean;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+  assigned_at: string | null;
+  activated_at: string | null;
+  revoked_at: string | null;
+  redeemed_at: string | null;
+}
+
+export const ACCESS_CODE_STATUS_LABELS: Record<AccessCodeStatus, string> = {
+  unused: 'Unused',
+  assigned: 'Assigned',
+  active: 'Active',
+  revoked: 'Revoked',
+  redeemed: 'Redeemed',
+};
+
+export const ACCESS_CODE_STATUS_COLORS: Record<AccessCodeStatus, string> = {
+  unused: 'bg-gray-100 text-gray-700',
+  assigned: 'bg-blue-100 text-blue-700',
+  active: 'bg-green-100 text-green-700',
+  revoked: 'bg-rose-100 text-rose-700',
+  redeemed: 'bg-purple-100 text-purple-700',
+};
+
+export interface SiteSettings {
+  instagram_url: string;
+  gcash_number: string;
+  gcash_name: string;
+}
+
+export interface VerifyCodeResult {
+  slug: string | null;
+  status: string;
+  hasSurprise: boolean;
+}
+
 export const FONT_OPTIONS = [
   { id: 'Cormorant Garamond', label: 'Cormorant (elegant serif)', css: "'Cormorant Garamond', serif" },
   { id: 'Dancing Script', label: 'Dancing Script (handwritten)', css: "'Dancing Script', cursive" },

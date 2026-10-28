@@ -3,7 +3,7 @@ import { FloatingHearts } from '@/components/FloatingHearts';
 import { Confetti } from '@/components/Confetti';
 import { Route } from '@/lib/router';
 import { supabase } from '@/lib/supabase';
-import { Surprise, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '@/lib/types';
+import { Surprise, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, SiteSettings, VerifyCodeResult } from '@/lib/types';
 import {
   Heart,
   Lock,
@@ -20,6 +20,8 @@ import {
   RefreshCw,
   Upload,
   KeyRound,
+  Ticket,
+  Loader2,
 } from 'lucide-react';
 
 interface Props {
@@ -27,10 +29,22 @@ interface Props {
   navigate: (r: Route) => void;
 }
 
-const GCASH_NUMBER = '09945579570';
-const GCASH_NAME = 'CS';
-const INSTAGRAM_URL = 'https://instagram.com/arcnnnee';
+const DEFAULT_INSTAGRAM_URL = 'https://instagram.com/arcnnnee';
+const DEFAULT_GCASH_NUMBER = '09945579570';
+const DEFAULT_GCASH_NAME = 'C S';
 const PRICE = 99;
+
+function getSessionIdentifier(): string {
+  let id = '';
+  try {
+    id = localStorage.getItem('ls_session_id') || '';
+  } catch { /* ignore */ }
+  if (!id) {
+    id = `s-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    try { localStorage.setItem('ls_session_id', id); } catch { /* ignore */ }
+  }
+  return id;
+}
 
 export function PayPage({ slug, navigate }: Props) {
   const [surprise, setSurprise] = useState<Surprise | null>(null);
@@ -43,6 +57,19 @@ export function PayPage({ slug, navigate }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Access code state
+  const [accessCode, setAccessCode] = useState('');
+  const [codeVerifying, setCodeVerifying] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [codeSuccess, setCodeSuccess] = useState<VerifyCodeResult | null>(null);
+
+  // Site settings (loaded from DB)
+  const [settings, setSettings] = useState<SiteSettings>({
+    instagram_url: DEFAULT_INSTAGRAM_URL,
+    gcash_number: DEFAULT_GCASH_NUMBER,
+    gcash_name: DEFAULT_GCASH_NAME,
+  });
+
   const loadSurprise = useCallback(async () => {
     const { data } = await supabase.from('surprises').select('*').eq('slug', slug).maybeSingle();
     setSurprise(data as Surprise | null);
@@ -53,13 +80,21 @@ export function PayPage({ slug, navigate }: Props) {
     setLoading(false);
   }, [slug]);
 
+  const loadSettings = useCallback(async () => {
+    const { data, error: err } = await supabase.rpc('get_public_settings');
+    if (!err && data) {
+      setSettings(data as SiteSettings);
+    }
+  }, []);
+
   useEffect(() => {
     loadSurprise();
-  }, [loadSurprise]);
+    loadSettings();
+  }, [loadSurprise, loadSettings]);
 
   const copyGcash = async () => {
     try {
-      await navigator.clipboard.writeText(GCASH_NUMBER);
+      await navigator.clipboard.writeText(settings.gcash_number);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -145,6 +180,43 @@ export function PayPage({ slug, navigate }: Props) {
     loadSurprise();
   };
 
+  const verifyCode = async () => {
+    if (!accessCode.trim()) {
+      setCodeError('Please enter your access code.');
+      return;
+    }
+    setCodeVerifying(true);
+    setCodeError(null);
+    setCodeSuccess(null);
+
+    const identifier = getSessionIdentifier();
+
+    const { data, error: rpcError } = await supabase.rpc('verify_access_code', {
+      p_code: accessCode.trim(),
+      p_identifier: identifier,
+    });
+
+    setCodeVerifying(false);
+
+    if (rpcError) {
+      setCodeError(rpcError.message || 'This access code is not valid or not yet activated.');
+      return;
+    }
+
+    if (!data) {
+      setCodeError('This access code is not valid or not yet activated.');
+      return;
+    }
+
+    const result = data as VerifyCodeResult;
+    setCodeSuccess(result);
+
+    // If the code is linked to a published surprise, navigate to it
+    if (result.hasSurprise && result.slug) {
+      setTimeout(() => navigate({ name: 'view', slug: result.slug! }), 1500);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-pink-50">
@@ -222,6 +294,18 @@ export function PayPage({ slug, navigate }: Props) {
                 {PAYMENT_STATUS_LABELS[status]}
               </span>
             </div>
+
+            {/* Access code section for verification page too */}
+            <AccessCodeSection
+              accessCode={accessCode}
+              setAccessCode={setAccessCode}
+              codeVerifying={codeVerifying}
+              codeError={codeError}
+              codeSuccess={codeSuccess}
+              verifyCode={verifyCode}
+              navigate={navigate}
+            />
+
             <div className="mt-6 flex flex-col gap-3">
               <button
                 onClick={() => navigate({ name: 'order', slug })}
@@ -334,39 +418,53 @@ export function PayPage({ slug, navigate }: Props) {
             <span className="font-serif-display text-3xl font-bold text-pink-600">₱{PRICE}</span>
           </div>
 
-          {/* GCash instructions */}
-          <div className="mt-5 rounded-2xl border-2 border-blue-200 bg-blue-50/60 p-5">
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <Smartphone size={20} />
-              </div>
-              <div>
-                <p className="font-semibold text-blue-900">Pay via GCash</p>
-                <p className="text-xs text-blue-700/70">Send ₱{PRICE} to the number below</p>
-              </div>
+          {/* ============ STEP 1: GCash Payment ============ */}
+          <div className="mt-6">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-pink-600 text-sm font-bold text-white">1</div>
+              <h2 className="font-serif-display text-lg font-semibold text-rose-900">Send Payment via GCash</h2>
             </div>
 
-            <div className="mt-4 flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-blue-500">GCash Number</p>
-                <p className="font-serif-display text-2xl font-bold text-blue-900">{GCASH_NUMBER}</p>
-                <p className="text-xs text-blue-700/70">Account name: {GCASH_NAME}</p>
+            <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/60 p-5">
+              <div className="flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                  <Smartphone size={20} />
+                </div>
+                <div>
+                  <p className="font-semibold text-blue-900">Pay via GCash</p>
+                  <p className="text-xs text-blue-700/70">Send ₱{PRICE} to the number below</p>
+                </div>
               </div>
-              <button
-                onClick={copyGcash}
-                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-blue-500">GCash Number</p>
+                  <p className="font-serif-display text-2xl font-bold text-blue-900">{settings.gcash_number}</p>
+                  <p className="text-xs text-blue-700/70">Account name: {settings.gcash_name}</p>
+                </div>
+                <button
+                  onClick={copyGcash}
+                  className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                >
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-lg bg-white/70 p-3 text-sm leading-relaxed text-blue-800">
+                Please send your payment through GCash first. After paying, submit your proof of
+                payment through our designated Instagram account for verification.
+              </div>
+
+              <a
+                href={settings.instagram_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex items-center justify-center gap-2 rounded-xl border-2 border-pink-300 bg-pink-50/50 py-2.5 text-sm font-semibold text-pink-700 transition hover:bg-pink-50"
               >
-                {copied ? <Check size={16} /> : <Copy size={16} />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
+                <Instagram size={18} /> Submit proof on Instagram
+              </a>
             </div>
-
-            <ol className="mt-4 space-y-2 text-sm text-blue-800">
-              <li className="flex gap-2"><span className="font-semibold">1.</span> Copy the GCash number and send ₱{PRICE}.</li>
-              <li className="flex gap-2"><span className="font-semibold">2.</span> Note your GCash reference number from the receipt.</li>
-              <li className="flex gap-2"><span className="font-semibold">3.</span> Screenshot your payment receipt.</li>
-              <li className="flex gap-2"><span className="font-semibold">4.</span> Upload both below for verification.</li>
-            </ol>
           </div>
 
           {/* GCash reference + receipt upload */}
@@ -446,6 +544,17 @@ export function PayPage({ slug, navigate }: Props) {
             </div>
           )}
 
+          {/* ============ STEP 2: Enter Access Code ============ */}
+          <AccessCodeSection
+            accessCode={accessCode}
+            setAccessCode={setAccessCode}
+            codeVerifying={codeVerifying}
+            codeError={codeError}
+            codeSuccess={codeSuccess}
+            verifyCode={verifyCode}
+            navigate={navigate}
+          />
+
           <div className="mt-4 flex items-center justify-center gap-4 text-xs text-rose-500">
             <span className="flex items-center gap-1"><Shield size={14} /> Secure</span>
             <span className="flex items-center gap-1"><SparklesIcon size={14} /> One-time</span>
@@ -453,12 +562,12 @@ export function PayPage({ slug, navigate }: Props) {
           </div>
 
           <a
-            href={INSTAGRAM_URL}
+            href={settings.instagram_url}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-4 flex items-center justify-center gap-2 rounded-xl border-2 border-pink-300 bg-pink-50/50 py-3 text-sm font-semibold text-pink-700 transition hover:bg-pink-50"
           >
-            <Instagram size={18} /> Questions? DM @arcnnnee on Instagram
+            <Instagram size={18} /> Questions? Message us on Instagram
           </a>
 
           <p className="mt-4 text-center text-xs leading-relaxed text-rose-400">
@@ -466,6 +575,96 @@ export function PayPage({ slug, navigate }: Props) {
             payment before your surprise is published. This is a one-time payment of ₱{PRICE}.
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AccessCodeSection({
+  accessCode,
+  setAccessCode,
+  codeVerifying,
+  codeError,
+  codeSuccess,
+  verifyCode,
+  navigate,
+}: {
+  accessCode: string;
+  setAccessCode: (v: string) => void;
+  codeVerifying: boolean;
+  codeError: string | null;
+  codeSuccess: VerifyCodeResult | null;
+  verifyCode: () => void;
+  navigate: (r: Route) => void;
+}) {
+  return (
+    <div className="mt-6">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-pink-600 text-sm font-bold text-white">2</div>
+        <h2 className="font-serif-display text-lg font-semibold text-rose-900">Enter Your Access Code</h2>
+      </div>
+
+      <div className="rounded-2xl border-2 border-pink-200 bg-pink-50/40 p-5">
+        <p className="text-sm text-rose-700/80">
+          Already received your access code? Enter it below to continue.
+        </p>
+
+        <div className="mt-4">
+          <label className="mb-1.5 block text-sm font-medium text-rose-800">Enter Your Unique Access Code</label>
+          <div className="relative">
+            <Ticket size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-400" />
+            <input
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value)}
+              placeholder="Enter your access code"
+              className="w-full rounded-xl border border-pink-200 bg-white py-3 pl-10 pr-4 font-mono text-sm tracking-wide text-rose-900 outline-none transition focus:border-pink-500 focus:ring-2 focus:ring-pink-200"
+              onKeyDown={(e) => { if (e.key === 'Enter') verifyCode(); }}
+            />
+          </div>
+        </div>
+
+        {codeError && (
+          <div className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
+            <span className="flex items-center gap-2"><AlertCircle size={16} /> {codeError}</span>
+          </div>
+        )}
+
+        {codeSuccess && (
+          <div className="mt-3 rounded-xl bg-green-50 p-3 text-sm text-green-700">
+            <span className="flex items-center gap-2">
+              <Check size={16} />
+              {codeSuccess.hasSurprise
+                ? 'Code verified! Taking you to your surprise…'
+                : 'Code verified! You can now continue to create your surprise.'}
+            </span>
+          </div>
+        )}
+
+        <button
+          onClick={verifyCode}
+          disabled={codeVerifying || !accessCode.trim()}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-pink-600 py-3.5 font-semibold text-white shadow-lg transition hover:scale-[1.01] hover:bg-pink-700 disabled:opacity-60"
+        >
+          {codeVerifying ? (
+            <><Loader2 size={20} className="animate-spin" /> Verifying…</>
+          ) : (
+            <><KeyRound size={20} /> Verify Code and Continue</>
+          )}
+        </button>
+
+        {codeSuccess && !codeSuccess.hasSurprise && (
+          <button
+            onClick={() => navigate({ name: 'create' })}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-pink-300 py-3 font-medium text-pink-700 transition hover:bg-pink-50"
+          >
+            Continue to Create Your Surprise <ArrowRight size={18} />
+          </button>
+        )}
+
+        <p className="mt-3 text-center text-xs leading-relaxed text-rose-400">
+          Your access code is provided by the website owner after your order has been processed.
+          Each code is unique and cannot be guessed or generated by customers.
+        </p>
       </div>
     </div>
   );
