@@ -467,6 +467,17 @@ export function PayPage({ slug, navigate }: Props) {
             </div>
           </div>
 
+          {/* ============ STEP 2: Enter Access Code (below GCash number) ============ */}
+          <AccessCodeSection
+            accessCode={accessCode}
+            setAccessCode={setAccessCode}
+            codeVerifying={codeVerifying}
+            codeError={codeError}
+            codeSuccess={codeSuccess}
+            verifyCode={verifyCode}
+            navigate={navigate}
+          />
+
           {/* GCash reference + receipt upload */}
           <div className="mt-5 space-y-4">
             <div>
@@ -543,17 +554,6 @@ export function PayPage({ slug, navigate }: Props) {
               Your previous receipt is saved securely. Upload a replacement only if our team asks for a correction.
             </div>
           )}
-
-          {/* ============ STEP 2: Enter Access Code ============ */}
-          <AccessCodeSection
-            accessCode={accessCode}
-            setAccessCode={setAccessCode}
-            codeVerifying={codeVerifying}
-            codeError={codeError}
-            codeSuccess={codeSuccess}
-            verifyCode={verifyCode}
-            navigate={navigate}
-          />
 
           <div className="mt-4 flex items-center justify-center gap-4 text-xs text-rose-500">
             <span className="flex items-center gap-1"><Shield size={14} /> Secure</span>
