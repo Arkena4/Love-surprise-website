@@ -121,17 +121,18 @@ export function AdminPage({ navigate }: Props) {
     }
   }, [isAdmin, loadOrders, loadCodes, loadSettings]);
 
-  const handleAction = async (rpc: string, params: Record<string, string>) => {
+  const handleAction = async (rpc: string, params: Record<string, string>): Promise<boolean> => {
     setBusy(true);
     setActionError(null);
     const { error } = await supabase.rpc(rpc, params);
     setBusy(false);
     if (error) {
-      setActionError(error.message);
+      console.error('Admin order action failed', error);
+      setActionError('That order could not be updated. Please refresh and try again.');
       return false;
     }
     setSelected(null);
-    loadOrders();
+    await loadOrders();
     return true;
   };
 
@@ -155,10 +156,11 @@ export function AdminPage({ navigate }: Props) {
     const { error } = await supabase.rpc(rpc, params);
     setBusy(false);
     if (error) {
-      setActionError(error.message);
+      console.error('Access code action failed', error);
+      setActionError('That access code could not be updated. Please refresh and try again.');
       return false;
     }
-    loadCodes();
+    await loadCodes();
     return true;
   };
 

@@ -295,17 +295,6 @@ export function PayPage({ slug, navigate }: Props) {
               </span>
             </div>
 
-            {/* Access code section for verification page too */}
-            <AccessCodeSection
-              accessCode={accessCode}
-              setAccessCode={setAccessCode}
-              codeVerifying={codeVerifying}
-              codeError={codeError}
-              codeSuccess={codeSuccess}
-              verifyCode={verifyCode}
-              navigate={navigate}
-            />
-
             <div className="mt-6 flex flex-col gap-3">
               <button
                 onClick={() => navigate({ name: 'order', slug })}

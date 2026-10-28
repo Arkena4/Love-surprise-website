@@ -32,9 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       const session = data.session;
       if (session) {
-        checkAdmin(session.user.id).then(async (isAdmin) => {
-          const canClaimAdmin = !isAdmin && await checkCanClaimAdmin();
-          setState({ user: session.user, session, isAdmin, canClaimAdmin, loading: false });
+        ensureProfile(session.user.id, session.user.email ?? '').then(() => {
+          checkAdmin(session.user.id).then(async (isAdmin) => {
+            const canClaimAdmin = !isAdmin && await checkCanClaimAdmin();
+            setState({ user: session.user, session, isAdmin, canClaimAdmin, loading: false });
+          });
         });
       } else {
         setState({ user: null, session: null, isAdmin: false, canClaimAdmin: false, loading: false });
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
         if (session) {
+          await ensureProfile(session.user.id, session.user.email ?? '');
           const isAdmin = await checkAdmin(session.user.id);
           const canClaimAdmin = !isAdmin && await checkCanClaimAdmin();
           setState({ user: session.user, session, isAdmin, canClaimAdmin, loading: false });
@@ -93,6 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+async function ensureProfile(userId: string, email: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!error && !data) {
+    await supabase.from('profiles').insert({ id: userId, email, role: 'customer' });
+  }
 }
 
 async function checkAdmin(userId: string): Promise<boolean> {
