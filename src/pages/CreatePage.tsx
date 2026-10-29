@@ -162,6 +162,7 @@ export function CreatePage({ navigate }: Props) {
     try {
       const toInsert = {
         slug: draft.slug,
+        published: true,
         occasion: draft.occasion,
         theme: draft.theme,
         recipient_name: draft.recipient_name,
@@ -191,7 +192,7 @@ export function CreatePage({ navigate }: Props) {
       if (e) throw e;
       // clear saved draft
       try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-      navigate({ name: 'pay', slug: data.slug });
+      navigate({ name: 'share', slug: data.slug });
     } catch (err) {
       setError('Could not save your surprise. Please try again.');
       console.error(err);
@@ -549,7 +550,7 @@ export function CreatePage({ navigate }: Props) {
                   disabled={saving}
                   className="flex items-center gap-2 rounded-full bg-pink-600 px-6 py-2.5 text-sm font-medium text-white shadow transition hover:scale-105 hover:bg-pink-700 disabled:opacity-60"
                 >
-                  {saving ? 'Saving…' : 'Save & Continue to Pay'} <ArrowRight size={16} />
+                  {saving ? 'Publishing…' : 'Publish & Get Share Link'} <ArrowRight size={16} />
                 </button>
               )}
             </div>
