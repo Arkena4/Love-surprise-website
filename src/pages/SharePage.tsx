@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { FloatingHearts } from '@/components/FloatingHearts';
+import { Confetti } from '@/components/Confetti';
 import { Route } from '@/lib/router';
 import { supabase } from '@/lib/supabase';
 import { Surprise } from '@/lib/types';
-import { Heart, Copy, Check, ExternalLink, RotateCcw, Share2, ArrowLeft } from 'lucide-react';
+import { Heart, Copy, Check, ExternalLink, Eye, Share2, ArrowLeft } from 'lucide-react';
 
 interface Props {
   slug: string;
@@ -58,19 +59,25 @@ export function SharePage({ slug, navigate }: Props) {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50">
-      <FloatingHearts count={14} />
+      <FloatingHearts count={20} />
+      <Confetti trigger={true} />
       <div className="relative z-10 mx-auto max-w-lg px-5 py-8">
         <button onClick={() => navigate({ name: 'home' })} className="flex items-center gap-1.5 text-sm text-rose-700 hover:text-rose-900">
           <ArrowLeft size={16} /> Home
         </button>
 
         <div className="mt-6 rounded-3xl border border-pink-100 bg-white/90 p-7 text-center shadow-lg backdrop-blur md:p-9">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pink-100 text-pink-600">
-            <Share2 size={26} />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600">
+            <Check size={32} />
           </div>
-          <h1 className="mt-4 font-serif-display text-3xl font-bold text-rose-900">Share your surprise</h1>
+          <h1 className="mt-5 font-serif-display text-3xl font-bold text-rose-900">
+            Your surprise is live!
+          </h1>
           <p className="mt-2 text-rose-700/70">
-            Send this link to {surprise?.recipient_name || 'your loved one'}. They can open it on any phone — no account needed.
+            {surprise?.recipient_name
+              ? `${surprise.recipient_name}'s surprise is published and ready.`
+              : 'Your surprise is published and ready.'}{' '}
+            Share the link or QR code below — they can open it on any phone, no account needed.
           </p>
 
           {/* QR */}
@@ -117,7 +124,7 @@ export function SharePage({ slug, navigate }: Props) {
             onClick={() => navigate({ name: 'view', slug })}
             className="mt-5 flex items-center justify-center gap-1.5 text-sm text-rose-500 hover:text-rose-700"
           >
-            <RotateCcw size={14} /> Replay the surprise
+            <Eye size={14} /> Preview the surprise
           </button>
         </div>
       </div>

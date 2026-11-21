@@ -97,7 +97,7 @@ export function LandingPage({ navigate }: Props) {
               Preview a Demo
             </button>
           </div>
-          <p className="mt-5 text-sm text-rose-500">Just ₱99 to publish &amp; share. No account needed to view.</p>
+          <p className="mt-5 text-sm text-rose-500">          Just ₱99 to publish &amp; share. No account needed to view.</p>
         </div>
       </header>
 
@@ -195,7 +195,7 @@ export function LandingPage({ navigate }: Props) {
           Simple, honest pricing
         </h2>
         <p className="mx-auto mt-3 max-w-md text-center text-rose-700/70">
-          Pay once. Your surprise stays live. No subscriptions, no hidden fees.
+                    Create your surprise in minutes — publish it and get a link and QR code to share instantly.
         </p>
         <div className="mx-auto mt-12 max-w-md">
           {PRICING.map((p) => (
@@ -266,7 +266,7 @@ export function LandingPage({ navigate }: Props) {
           <Heart className="mx-auto animate-heartbeat" fill="currentColor" size={40} />
           <h2 className="mt-4 font-serif-display text-4xl font-bold">Ready to make them smile?</h2>
           <p className="mt-3 text-white/90">
-            Build your surprise in minutes. Pay ₱99 to publish and share the link with the one you love.
+            Build your surprise in minutes, publish it, and share the link with the one you love.
           </p>
           <button
             onClick={() => navigate({ name: 'create' })}
